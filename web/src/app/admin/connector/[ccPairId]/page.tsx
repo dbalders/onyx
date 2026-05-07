@@ -68,6 +68,8 @@ import { Button } from "@opal/components";
 import { SvgSettings } from "@opal/icons";
 import { UserRole } from "@/lib/types";
 import { useUser } from "@/providers/UserProvider";
+import { resolveAllErrorsForCCPair } from "@/lib/targeted_reindex";
+import { SWR_KEYS } from "@/lib/swr-keys";
 // synchronize these validations with the SQLAlchemy connector class until we have a
 // centralized schema for both frontend and backend
 const RefreshFrequencySchema = Yup.object().shape({
@@ -156,6 +158,13 @@ function Main({ ccPairId }: { ccPairId: number }) {
 
   const [showIsResolvingKickoffLoader, setShowIsResolvingKickoffLoader] =
     useState(false);
+  // Per-batch progress shown while a Resolve-All call is fanning out
+  // chunks of error_ids through the targeted-reindex API. `null` =
+  // not currently resolving via targeted reindex.
+  const [targetedReindexProgress, setTargetedReindexProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [showDeleteConnectorConfirmModal, setShowDeleteConnectorConfirmModal] =
     useState(false);
@@ -426,9 +435,40 @@ function Main({ ccPairId }: { ccPairId: number }) {
           onResolveAll={async () => {
             setShowIndexAttemptErrors(false);
             setShowIsResolvingKickoffLoader(true);
-            await triggerReIndex(true);
+            setTargetedReindexProgress({ done: 0, total: 1 });
+            try {
+              const result = await resolveAllErrorsForCCPair(
+                ccPairId,
+                (done, total) => setTargetedReindexProgress({ done, total })
+              );
+              if (result.job_ids.length === 0) {
+                toast.success("No unresolved errors to retry.");
+              } else {
+                toast.success(
+                  `Targeted reindex complete: ${result.resolved_count} resolved, ` +
+                    `${result.still_failing_count} still failing, ` +
+                    `${result.skipped_count} skipped (across ${result.job_ids.length} ` +
+                    `${result.job_ids.length === 1 ? "job" : "jobs"}).`
+                );
+              }
+              // Refresh the errors list so resolved rows flip to "Resolved".
+              mutate(
+                (key) =>
+                  typeof key === "string" &&
+                  key.startsWith(SWR_KEYS.ccPairIndexingErrors(ccPairId))
+              );
+            } catch (err) {
+              const message = err instanceof Error ? err.message : String(err);
+              toast.error(`Targeted reindex failed: ${message}`);
+            } finally {
+              setTargetedReindexProgress(null);
+              setShowIsResolvingKickoffLoader(false);
+            }
           }}
-          isResolvingErrors={isResolvingErrors}
+          isResolvingErrors={
+            isResolvingErrors || targetedReindexProgress !== null
+          }
+          targetedReindexProgress={targetedReindexProgress}
         />
       )}
 

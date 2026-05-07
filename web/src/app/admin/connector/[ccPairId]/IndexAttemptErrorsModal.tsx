@@ -28,6 +28,9 @@ export interface IndexAttemptErrorsModalProps {
   onClose: () => void;
   onResolveAll: () => void;
   isResolvingErrors?: boolean;
+  /** Per-batch progress while a Resolve-All targeted-reindex run is in
+   * flight; one batch = up to 100 errors. `null` when no run is active. */
+  targetedReindexProgress?: { done: number; total: number } | null;
 }
 
 export default function IndexAttemptErrorsModal({
@@ -39,6 +42,7 @@ export default function IndexAttemptErrorsModal({
   onClose,
   onResolveAll,
   isResolvingErrors = false,
+  targetedReindexProgress = null,
 }: IndexAttemptErrorsModalProps) {
   const observerRef = useRef<ResizeObserver | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -90,7 +94,9 @@ export default function IndexAttemptErrorsModal({
           title="Indexing Errors"
           description={
             isResolvingErrors
-              ? "Currently attempting to resolve all errors by performing a full re-index. This may take some time to complete."
+              ? targetedReindexProgress
+                ? `Re-fetching the failing documents directly. Batch ${targetedReindexProgress.done} of ${targetedReindexProgress.total} complete.`
+                : "Currently attempting to resolve all errors. This may take some time to complete."
               : undefined
           }
           onClose={onClose}
@@ -104,9 +110,8 @@ export default function IndexAttemptErrorsModal({
                 represents a failed document or entity.
               </Text>
               <Text as="p">
-                Click the button below to kick off a full re-index to try and
-                resolve these errors. This full re-index may take much longer
-                than a normal update.
+                Click the button below to re-fetch only the failing documents
+                via a targeted reindex. Much faster than a full re-crawl.
               </Text>
             </div>
           )}
