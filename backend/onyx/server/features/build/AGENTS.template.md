@@ -16,6 +16,33 @@ Ephemeral VM with Python 3.11 and Node v22. Virtual environment at `.venv/` incl
 
 Install packages: `pip install <pkg>` or `npm install <pkg>` (from `outputs/web`).
 
+## UCSD Campus Hosting Contract
+
+When the user asks you to build a web app, dashboard, internal tool, form, tracker, workflow, or other campus-hostable software, you must produce two outputs:
+
+1. A working Craft preview in `outputs/web`.
+2. A UCSD review package in `outputs/ucsd-package`.
+
+The UCSD review package must have this shape:
+
+```text
+outputs/ucsd-package/
+  app/
+  app.manifest.json
+  README.md
+```
+
+The `outputs/ucsd-package/app/` directory is the deployment app package. It must contain a `Dockerfile`, a runnable app, and a health endpoint that matches the manifest.
+
+For web apps, prefer Next.js unless the user clearly needs another runtime. Use port `3000` for the packaged app unless there is a strong technical reason not to. Bind server processes to `0.0.0.0` in container commands.
+
+Do not put secrets, tokens, passwords, kubeconfigs, GitHub credentials, or DSMLP credentials in generated files. If the app needs runtime configuration, list the variables in `app.manifest.json`.
+
+Do not directly deploy to DSMLP, Kubernetes, or GitHub. The UCSD intake backend owns identity, GitHub publishing, image builds, review, and deployment. If the user asks to submit or deploy, explain that the package is ready for the controlled UCSD intake action.
+
+Read `.opencode/skills/ucsd-dsmlp-app/SKILL.md` before building any campus-hostable app package.
+Read `.opencode/skills/ucsd-brand-compliance/SKILL.md` before building, redesigning, or reviewing UC San Diego-branded web apps, dashboards, pages, or components.
+
 {{ORG_INFO_SECTION}}
 
 ## Skills

@@ -206,6 +206,15 @@ export interface ApiWebappInfoResponse {
   sharing_scope: SharingScope;
 }
 
+export interface GithubPublishResponse {
+  owner: string;
+  repo_name: string;
+  html_url: string;
+  commit_url: string;
+  commit_sha: string;
+  created_repo: boolean;
+}
+
 export interface FileSystemEntry {
   name: string;
   path: string;

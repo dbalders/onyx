@@ -9,6 +9,36 @@ This file provides guidance to AI agents when working on the web application wit
 - If the app needs pre-computation (data processing, API calls, etc.), create a bash or python script called `prepare.sh`/`prepare.py` at the root of this directory
 - **CRITICAL: Create small, modular components** - Do NOT write everything in `page.tsx`. Break your UI into small, reusable components in the `components/` directory. Each component should have a single responsibility and be in its own file.
 
+## UCSD Review Package
+
+This Craft preview app lives in `outputs/web`. For every campus-hostable app, also create a deployment package at:
+
+```text
+../ucsd-package/
+  app/
+  app.manifest.json
+  README.md
+```
+
+The package must be usable by a controlled UCSD intake pipeline.
+
+Required package behavior:
+
+- Copy or mirror the runnable Next.js app into `../ucsd-package/app/`.
+- Include `../ucsd-package/app/Dockerfile`.
+- Include a health route in the packaged app, normally `app/api/health/route.ts`.
+- Make `app.manifest.json` use `container_port: 3000` and `health_path: "/api/health"` unless there is a strong reason not to.
+- Ensure the packaged app start command binds to `0.0.0.0`.
+- Do not include secrets, tokens, kubeconfigs, GitHub credentials, or DSMLP credentials.
+- Put required runtime configuration in the manifest `env` array.
+- Include clear reviewer-facing documentation in `../ucsd-package/README.md`.
+
+Use Dockerfile paths relative to the Docker build context. Because the Docker build context is `../ucsd-package/app`, do not write `COPY app/package.json ...`; use `COPY package*.json ./`.
+
+After modifying the preview app, update the UCSD package too.
+
+For UC San Diego-branded UI work, read `../../.opencode/skills/ucsd-brand-compliance/SKILL.md` and apply the official colors, typography guidance, logo handling rules, and accessibility checks there.
+
 ## Data Preparation Scripts
 
 **CRITICAL: Always re-run data scripts after modifying them.**

@@ -71,6 +71,11 @@ from onyx.server.features.build.db.sandbox import get_sandbox_by_user_id
 from onyx.server.features.build.db.sandbox import get_snapshots_for_session
 from onyx.server.features.build.db.sandbox import update_sandbox_heartbeat
 from onyx.server.features.build.db.sandbox import update_sandbox_status__no_commit
+from onyx.server.features.build.github_publish import DEFAULT_GITHUB_OWNER
+from onyx.server.features.build.github_publish import GithubFile
+from onyx.server.features.build.github_publish import GithubPublisher
+from onyx.server.features.build.github_publish import build_default_repo_name
+from onyx.server.features.build.github_publish import with_default_github_files
 from onyx.server.features.build.sandbox import get_sandbox_manager
 from onyx.server.features.build.sandbox.kubernetes.internal.acp_exec_client import (
     SSEKeepalive,
@@ -1961,6 +1966,98 @@ class SessionManager:
         filename = f"{safe_name}-webapp.zip"
 
         return zip_buffer.getvalue(), filename
+
+    def publish_webapp_to_github(
+        self,
+        session_id: UUID,
+        user_id: UUID,
+        user_email: str | None,
+        repo_name: str | None = None,
+        owner: str | None = None,
+        private: bool = True,
+    ) -> dict[str, Any] | None:
+        """Publish the generated web app to a GitHub repository."""
+        session = get_build_session(session_id, user_id, self._db_session)
+        if session is None:
+            return None
+
+        sandbox = get_sandbox_by_user_id(self._db_session, user_id)
+        if sandbox is None:
+            return None
+
+        files = self._collect_webapp_github_files(sandbox.id, session_id)
+        if files is None:
+            return None
+
+        target_owner = owner or DEFAULT_GITHUB_OWNER
+        target_repo = repo_name or build_default_repo_name(user_email, session.name)
+        description = f"Onyx Craft app from session {session_id}"
+
+        result = GithubPublisher().publish(
+            owner=target_owner,
+            repo_name=target_repo,
+            description=description,
+            files=with_default_github_files(files),
+            private=private,
+        )
+
+        return {
+            "owner": result.owner,
+            "repo_name": result.repo_name,
+            "html_url": result.html_url,
+            "commit_url": result.commit_url,
+            "commit_sha": result.commit_sha,
+            "created_repo": result.created_repo,
+        }
+
+    def _collect_webapp_github_files(
+        self,
+        sandbox_id: UUID,
+        session_id: UUID,
+    ) -> list[GithubFile] | None:
+        """Collect publishable files from outputs/web."""
+
+        try:
+            self._sandbox_manager.list_directory(
+                sandbox_id=sandbox_id,
+                session_id=session_id,
+                path="outputs/web",
+            )
+        except ValueError:
+            return None
+
+        ignored_dirs = {".git", ".next", "node_modules"}
+
+        def should_skip(path: str) -> bool:
+            parts = Path(path).parts
+            if any(part in ignored_dirs for part in parts):
+                return True
+            filename = Path(path).name
+            return filename == ".env" or filename.startswith(".env.")
+
+        def collect_files(dir_path: str) -> list[GithubFile]:
+            files: list[GithubFile] = []
+            entries = self._sandbox_manager.list_directory(
+                sandbox_id=sandbox_id,
+                session_id=session_id,
+                path=dir_path,
+            )
+            for entry in entries:
+                repo_path = entry.path.replace("outputs/web/", "", 1)
+                if should_skip(repo_path):
+                    continue
+                if entry.is_directory:
+                    files.extend(collect_files(entry.path))
+                    continue
+                content = self._sandbox_manager.read_file(
+                    sandbox_id=sandbox_id,
+                    session_id=session_id,
+                    path=entry.path,
+                )
+                files.append(GithubFile(repo_path, content))
+            return files
+
+        return collect_files("outputs/web")
 
     def download_directory(
         self,

@@ -261,6 +261,24 @@ class WebappInfo(BaseModel):
     sharing_scope: SharingScope
 
 
+class GithubPublishRequest(BaseModel):
+    """Request to publish a generated Craft web app to GitHub."""
+
+    repo_name: str | None = None
+    private: bool = True
+
+
+class GithubPublishResponse(BaseModel):
+    """Response returned after publishing a generated Craft web app to GitHub."""
+
+    owner: str
+    repo_name: str
+    html_url: str
+    commit_url: str
+    commit_sha: str
+    created_repo: bool
+
+
 # ===== File Upload Models =====
 class UploadResponse(BaseModel):
     """Response after successful file upload."""

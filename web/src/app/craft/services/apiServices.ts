@@ -5,6 +5,7 @@ import {
   ApiArtifactResponse,
   ApiUsageLimitsResponse,
   ApiWebappInfoResponse,
+  GithubPublishResponse,
   SessionHistoryItem,
   Artifact,
   BuildMessage,
@@ -394,6 +395,27 @@ export async function fetchWebappInfo(
 
   if (!res.ok) {
     throw new Error(`Failed to fetch webapp info: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function publishWebappToGithub(
+  sessionId: string
+): Promise<GithubPublishResponse> {
+  const res = await fetch(`${API_BASE}/sessions/${sessionId}/github/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      private: true,
+    }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(
+      errorData.detail || `Failed to publish to GitHub: ${res.status}`
+    );
   }
 
   return res.json();

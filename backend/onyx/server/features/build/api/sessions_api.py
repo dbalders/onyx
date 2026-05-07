@@ -24,6 +24,8 @@ from onyx.server.features.build.api.models import DetailedSessionResponse
 from onyx.server.features.build.api.models import DirectoryListing
 from onyx.server.features.build.api.models import GenerateSuggestionsRequest
 from onyx.server.features.build.api.models import GenerateSuggestionsResponse
+from onyx.server.features.build.api.models import GithubPublishRequest
+from onyx.server.features.build.api.models import GithubPublishResponse
 from onyx.server.features.build.api.models import PptxPreviewResponse
 from onyx.server.features.build.api.models import PreProvisionedCheckResponse
 from onyx.server.features.build.api.models import SessionCreateRequest
@@ -46,6 +48,7 @@ from onyx.server.features.build.db.sandbox import get_latest_snapshot_for_sessio
 from onyx.server.features.build.db.sandbox import get_sandbox_by_user_id
 from onyx.server.features.build.db.sandbox import update_sandbox_heartbeat
 from onyx.server.features.build.db.sandbox import update_sandbox_status__no_commit
+from onyx.server.features.build.github_publish import GithubPublishError
 from onyx.server.features.build.sandbox import get_sandbox_manager
 from onyx.server.features.build.session.manager import SessionManager
 from onyx.server.features.build.session.manager import UploadLimitExceededError
@@ -762,6 +765,33 @@ def download_webapp(
             "Content-Disposition": f'attachment; filename="{filename}"',
         },
     )
+
+
+@router.post("/{session_id}/github/publish")
+def publish_webapp_to_github(
+    session_id: UUID,
+    request: GithubPublishRequest,
+    user: User = Depends(require_permission(Permission.BASIC_ACCESS)),
+    db_session: Session = Depends(get_session),
+) -> GithubPublishResponse:
+    """Publish the generated webapp directory to a GitHub repository."""
+    session_manager = SessionManager(db_session)
+
+    try:
+        result = session_manager.publish_webapp_to_github(
+            session_id=session_id,
+            user_id=user.id,
+            user_email=user.email,
+            repo_name=request.repo_name,
+            private=request.private,
+        )
+    except GithubPublishError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    if result is None:
+        raise HTTPException(status_code=404, detail="Webapp not found")
+
+    return GithubPublishResponse(**result)
 
 
 @router.get("/{session_id}/download-directory/{path:path}")

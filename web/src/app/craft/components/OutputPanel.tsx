@@ -19,8 +19,10 @@ import {
   fetchWebappInfo,
   fetchArtifacts,
   exportDocx,
+  publishWebappToGithub,
 } from "@/app/craft/services/apiServices";
 import { getFileIcon } from "@/lib/utils";
+import { toast } from "@/hooks/useToast";
 import { cn } from "@opal/utils";
 import Text from "@/refresh-components/texts/Text";
 import {
@@ -286,6 +288,7 @@ const BuildOutputPanel = memo(({ onClose, isOpen }: BuildOutputPanelProps) => {
     /\.pdf$/i.test(activeFilePreviewPath);
 
   const [isExportingDocx, setIsExportingDocx] = useState(false);
+  const [isPublishingGithub, setIsPublishingGithub] = useState(false);
 
   const handleDocxDownload = useCallback(async () => {
     if (!session?.id || !activeFilePreviewPath) return;
@@ -323,6 +326,20 @@ const BuildOutputPanel = memo(({ onClose, isOpen }: BuildOutputPanelProps) => {
     link.click();
     document.body.removeChild(link);
   }, [session?.id, activeFilePreviewPath]);
+
+  const handleGithubPublish = useCallback(async () => {
+    if (!session?.id || isPublishingGithub) return;
+    setIsPublishingGithub(true);
+    try {
+      const result = await publishWebappToGithub(session.id);
+      toast.success(`Published ${result.owner}/${result.repo_name}`);
+      window.open(result.html_url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "GitHub publish failed");
+    } finally {
+      setIsPublishingGithub(false);
+    }
+  }, [session?.id, isPublishingGithub]);
 
   // Unified refresh handler — dispatches based on the active tab/preview
   const handleRefresh = useCallback(() => {
@@ -627,6 +644,15 @@ const BuildOutputPanel = memo(({ onClose, isOpen }: BuildOutputPanelProps) => {
         }
         sharingScope={webappInfo?.sharing_scope ?? "private"}
         onScopeChange={mutate}
+        onPublishGithub={
+          !isFilePreviewActive &&
+          activeOutputTab === "preview" &&
+          session?.id &&
+          displayUrl?.startsWith("http")
+            ? handleGithubPublish
+            : undefined
+        }
+        isPublishingGithub={isPublishingGithub}
       />
 
       {/* Tab Content */}

@@ -12,6 +12,7 @@ import {
   SvgExternalLink,
   SvgRevert,
 } from "@opal/icons";
+import { SvgGithub } from "@opal/logos";
 import { IconProps } from "@opal/types";
 import { Tooltip } from "@opal/components";
 import ShareButton from "@/app/craft/components/ShareButton";
@@ -46,6 +47,10 @@ export interface UrlBarProps {
   sharingScope?: SharingScope;
   /** Callback when sharing scope changes (revalidate webapp info) */
   onScopeChange?: () => void;
+  /** Optional GitHub publish callback for generated webapps */
+  onPublishGithub?: () => void;
+  /** Whether GitHub publishing is in progress */
+  isPublishingGithub?: boolean;
 }
 
 /**
@@ -71,6 +76,8 @@ export default function UrlBar({
   sessionId,
   sharingScope = "private",
   onScopeChange,
+  onPublishGithub,
+  isPublishingGithub = false,
 }: UrlBarProps) {
   const handleOpenInNewTab = () => {
     if (previewUrl) {
@@ -164,6 +171,17 @@ export default function UrlBar({
           </Button>
         )}
         {/* Share button — shown when webapp preview is active */}
+        {previewUrl && sessionId && onPublishGithub && (
+          <Button
+            disabled={isPublishingGithub}
+            variant="action"
+            prominence="tertiary"
+            icon={isPublishingGithub ? SpinningLoader : SvgGithub}
+            onClick={onPublishGithub}
+          >
+            {isPublishingGithub ? "Publishing..." : "Push to GitHub"}
+          </Button>
+        )}
         {previewUrl && sessionId && (
           <ShareButton
             key={sessionId}

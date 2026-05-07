@@ -1,6 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type FunctionComponent,
+} from "react";
 import useSWR from "swr";
 import { SWR_KEYS } from "@/lib/swr-keys";
 import Text from "@/refresh-components/texts/Text";
@@ -12,7 +17,10 @@ import {
   SvgFiles,
   SvgChevronDown,
   SvgChevronRight,
+  SvgLoader,
 } from "@opal/icons";
+import { SvgGithub } from "@opal/logos";
+import { IconProps } from "@opal/types";
 import { Section } from "@/layouts/general-layouts";
 import { Artifact } from "@/app/craft/hooks/useBuildSessionStore";
 import { useFilesNeedsRefresh } from "@/app/craft/hooks/useBuildSessionStore";
@@ -20,10 +28,16 @@ import {
   fetchDirectoryListing,
   downloadArtifactFile,
   downloadDirectory,
+  publishWebappToGithub,
 } from "@/app/craft/services/apiServices";
 import { FileSystemEntry } from "@/app/craft/types/streamingTypes";
+import { toast } from "@/hooks/useToast";
 import { getFileIcon } from "@/lib/utils";
 import { cn } from "@opal/utils";
+
+const SpinningLoader: FunctionComponent<IconProps> = (props) => (
+  <SvgLoader {...props} className={cn(props.className, "animate-spin")} />
+);
 
 interface ArtifactsTabProps {
   artifacts: Artifact[];
@@ -34,6 +48,8 @@ export default function ArtifactsTab({
   artifacts,
   sessionId,
 }: ArtifactsTabProps) {
+  const [isPublishing, setIsPublishing] = useState(false);
+
   const webappArtifacts = artifacts.filter(
     (a) => a.type === "nextjs_app" || a.type === "web_app"
   );
@@ -103,6 +119,20 @@ export default function ArtifactsTab({
     document.body.removeChild(link);
   };
 
+  const handleGithubPublish = useCallback(async () => {
+    if (!sessionId || isPublishing) return;
+    setIsPublishing(true);
+    try {
+      const result = await publishWebappToGithub(sessionId);
+      toast.success(`Published ${result.owner}/${result.repo_name}`);
+      window.open(result.html_url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "GitHub publish failed");
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [sessionId, isPublishing]);
+
   const handleOutputDownload = useCallback(
     (path: string, isDirectory: boolean) => {
       if (!sessionId) return;
@@ -159,6 +189,15 @@ export default function ArtifactsTab({
               </div>
 
               <div className="flex items-center gap-2">
+                <Button
+                  variant="action"
+                  prominence="tertiary"
+                  icon={isPublishing ? SpinningLoader : SvgGithub}
+                  disabled={isPublishing}
+                  onClick={handleGithubPublish}
+                >
+                  {isPublishing ? "Publishing..." : "Push to GitHub"}
+                </Button>
                 <Button
                   variant="action"
                   prominence="tertiary"
