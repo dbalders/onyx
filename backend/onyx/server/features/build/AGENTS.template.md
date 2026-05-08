@@ -32,6 +32,34 @@ outputs/ucsd-package/
   README.md
 ```
 
+`outputs/ucsd-package/app.manifest.json` is mandatory for every generated project. Create it as a real file, even for prototypes, demos, or apps that only use mock data. Do not finish a campus-hostable app without this file.
+
+Default manifest:
+
+```json
+{
+  "schema_version": "1",
+  "app_name": "short-kebab-case-name",
+  "description": "One sentence describing the app.",
+  "runtime": "nextjs",
+  "container_port": 3000,
+  "health_path": "/api/health",
+  "build": {
+    "install": "npm ci",
+    "build": "npm run build",
+    "start": "npm start"
+  },
+  "resources": {
+    "cpu": "500m",
+    "memory": "1Gi"
+  },
+  "env": [],
+  "storage": {
+    "persistent": false
+  }
+}
+```
+
 The `outputs/ucsd-package/app/` directory is the deployment app package. It must contain a `Dockerfile`, a runnable app, and a health endpoint that matches the manifest.
 
 For web apps, prefer Next.js unless the user clearly needs another runtime. Use port `3000` for the packaged app unless there is a strong technical reason not to. Bind server processes to `0.0.0.0` in container commands.
@@ -39,6 +67,8 @@ For web apps, prefer Next.js unless the user clearly needs another runtime. Use 
 Do not put secrets, tokens, passwords, kubeconfigs, GitHub credentials, or DSMLP credentials in generated files. If the app needs runtime configuration, list the variables in `app.manifest.json`.
 
 Do not directly deploy to DSMLP, Kubernetes, or GitHub. The UCSD intake backend owns identity, GitHub publishing, image builds, review, and deployment. If the user asks to submit or deploy, explain that the package is ready for the controlled UCSD intake action.
+
+Do not create GitHub Actions security workflows such as CodeQL, Gitleaks, Trivy, or dependency-review. The UCSD GitHub App review watcher owns security review centrally. If you create `.github/workflows`, keep them limited to basic build/test checks unless the user explicitly asks for more.
 
 Read `.opencode/skills/ucsd-dsmlp-app/SKILL.md` before building any campus-hostable app package.
 Read `.opencode/skills/ucsd-brand-compliance/SKILL.md` before building, redesigning, or reviewing UC San Diego-branded web apps, dashboards, pages, or components.

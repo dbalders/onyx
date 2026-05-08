@@ -1990,7 +1990,9 @@ class SessionManager:
             return None
 
         target_owner = owner or DEFAULT_GITHUB_OWNER
-        target_repo = repo_name or build_default_repo_name(user_email, session.name)
+        target_repo = repo_name or build_default_repo_name(
+            user_email, session.name, session.id
+        )
         description = f"Onyx Craft app from session {session_id}"
 
         result = GithubPublisher().publish(

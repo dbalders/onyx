@@ -20,6 +20,34 @@ This Craft preview app lives in `outputs/web`. For every campus-hostable app, al
   README.md
 ```
 
+`../ucsd-package/app.manifest.json` is mandatory for every generated project. Create it as a real file, even for prototypes, demos, or apps that only use mock data. Do not finish a campus-hostable app without this file.
+
+Default manifest:
+
+```json
+{
+  "schema_version": "1",
+  "app_name": "short-kebab-case-name",
+  "description": "One sentence describing the app.",
+  "runtime": "nextjs",
+  "container_port": 3000,
+  "health_path": "/api/health",
+  "build": {
+    "install": "npm ci",
+    "build": "npm run build",
+    "start": "npm start"
+  },
+  "resources": {
+    "cpu": "500m",
+    "memory": "1Gi"
+  },
+  "env": [],
+  "storage": {
+    "persistent": false
+  }
+}
+```
+
 The package must be usable by a controlled UCSD intake pipeline.
 
 Required package behavior:
@@ -36,6 +64,8 @@ Required package behavior:
 Use Dockerfile paths relative to the Docker build context. Because the Docker build context is `../ucsd-package/app`, do not write `COPY app/package.json ...`; use `COPY package*.json ./`.
 
 After modifying the preview app, update the UCSD package too.
+
+Do not create GitHub Actions security workflows such as CodeQL, Gitleaks, Trivy, or dependency-review. The UCSD GitHub App review watcher owns security review centrally. If you create `.github/workflows`, keep them limited to basic build/test checks unless the user explicitly asks for more.
 
 For UC San Diego-branded UI work, read `../../.opencode/skills/ucsd-brand-compliance/SKILL.md` and apply the official colors, typography guidance, logo handling rules, and accessibility checks there.
 

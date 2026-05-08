@@ -8,7 +8,6 @@ from typing import Any
 
 import httpx
 
-
 GITHUB_API_URL = "https://api.github.com"
 DEFAULT_GITHUB_OWNER = os.environ.get("ONYX_CRAFT_GITHUB_OWNER", "dbaldersapps")
 
@@ -38,11 +37,26 @@ def slugify_repo_part(value: str, fallback: str) -> str:
     return slug or fallback
 
 
-def build_default_repo_name(user_email: str | None, session_name: str | None) -> str:
+def build_default_repo_name(
+    user_email: str | None,
+    session_name: str | None,
+    session_id: object | None = None,
+) -> str:
     username = slugify_repo_part((user_email or "user").split("@", 1)[0], "user")
     project = slugify_repo_part(session_name or "app", "app")
-    repo_name = f"onyx-craft-{username}-{project}"
-    return repo_name[:100].rstrip("-")
+    session_suffix = (
+        slugify_repo_part(str(session_id)[:8], "session") if session_id else None
+    )
+    suffix = f"-{session_suffix}" if session_suffix else ""
+
+    max_username_length = max(1, 100 - len("onyx--") - len(suffix) - 1)
+    username = username[:max_username_length].rstrip("-") or "user"
+
+    prefix = f"onyx-{username}-"
+    max_project_length = max(1, 100 - len(prefix) - len(suffix))
+    project = project[:max_project_length].rstrip("-") or "app"
+
+    return f"{prefix}{project}{suffix}"
 
 
 def craft_ci_workflow() -> bytes:
@@ -72,56 +86,6 @@ jobs:
 """
 
 
-def security_workflow() -> bytes:
-    return b"""name: Security Review
-
-on:
-  pull_request:
-  push:
-    branches: [main]
-
-permissions:
-  contents: read
-  security-events: write
-
-jobs:
-  dependency-review:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
-
-  codeql:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
-        with:
-          languages: javascript-typescript
-      - uses: github/codeql-action/analyze@v3
-
-  secret-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-
-  filesystem-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: aquasecurity/trivy-action@0.28.0
-        with:
-          scan-type: fs
-          scan-ref: .
-          severity: HIGH,CRITICAL
-          exit-code: "1"
-"""
-
-
 def dependabot_config() -> bytes:
     return b"""version: 2
 updates:
@@ -140,7 +104,6 @@ def with_default_github_files(files: list[GithubFile]) -> list[GithubFile]:
     generated_paths = {file.path for file in files}
     default_files = [
         GithubFile(".github/workflows/onyx-craft-ci.yml", craft_ci_workflow()),
-        GithubFile(".github/workflows/security.yml", security_workflow()),
         GithubFile(".github/dependabot.yml", dependabot_config()),
     ]
     return files + [file for file in default_files if file.path not in generated_paths]
